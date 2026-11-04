@@ -1,0 +1,22 @@
+# php-s3-lite — Apache rewrite rules.
+# Merge this into an existing .htaccess if you already have one; do not
+# overwrite an existing file blindly. Only non-existent paths are rewritten,
+# so existing static files (e.g. /images/photo.jpg) are still served directly.
+RewriteEngine On
+# Multipart scratch data must never be served as static files.
+RewriteRule ^\.multipart/ - [F,L]
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([^/]+)/(.+)$ s3.php?bucket=$1&key=$2 [L,QSA]
+# ListBucket is GET /{bucket} with no key segment.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([^/]+)$ s3.php?bucket=$1 [L,QSA]
+# Never serve the credentials file or multipart scratch data directly.
+<Files "s3-config.php">
+    Require all denied
+</Files>
+<FilesMatch "^\.multipart">
+    Require all denied
+</FilesMatch>

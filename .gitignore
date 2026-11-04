@@ -1,0 +1,7 @@
+s3-config.php
+.multipart/
+node_modules/
+*.log
+# Uploaded objects are user data, not code. Ignore the default Rin folder;
+# adjust this if you store objects elsewhere.
+images/
