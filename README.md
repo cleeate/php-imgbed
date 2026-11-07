@@ -153,7 +153,7 @@ same client library Rin uses.
 s3.php                 # the endpoint (the only file that matters at runtime)
 s3-config.example.php  # copy to s3-config.php, never commit the real one
 .htaccess              # Apache rewrite + deny rules
-index.php              # plain-text notice page
+index.php              # 上传面板 + 对接帮助（浏览器内 SigV4 直传）
 tests/                 # router for php -S + aws4fetch end-to-end test
 docs/                  # Rin, aws-cli, Nginx guides
 ```
