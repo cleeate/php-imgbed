@@ -129,6 +129,6 @@ function render(){
 render();
 </script>
 
-<footer>源码仓库 · <a href="https://github.com/cleeate/php-s3-lite" target="_blank" rel="noopener">github.com/cleeate/php-s3-lite</a></footer>
+<footer>源码仓库 · <a href="https://github.com/cleeate/php-imgbed" target="_blank" rel="noopener">github.com/cleeate/php-imgbed</a></footer>
 </body>
 </html>
