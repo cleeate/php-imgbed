@@ -4,9 +4,40 @@ define('DIR', __DIR__ . '/uploads');
 define('MAX', 10 * 1024 * 1024);
 $ALLOWED = ['jpg'=>'jpg','jpeg'=>'jpg','png'=>'png','gif'=>'gif','webp'=>'webp'];
 
+/* Cloudflare Turnstile：下面是官方测试密钥（任何主机名都通过验证，仅用于联调）。
+   上线时去 dash.cloudflare.com → Turnstile 新建 widget，域名填 gofor.hyperphp.com，
+   把 TS_SITEKEY / TS_SECRET 换成真实密钥即可，代码不用再改。*/
+define('TS_SITEKEY', '1x00000000000000000000AA');
+define('TS_SECRET', '1x0000000000000000000000000000000AA');
+define('TS_VERIFY_URL', 'https://challenges.cloudflare.com/turnstile/v0/siteverify');
+
+// 校验 Turnstile token：ok / fail / no-token / unreachable（主机连不上 Cloudflare）
+function ts_verify($token) {
+    if ($token === '') return 'no-token';
+    $post = http_build_query(['secret'=>TS_SECRET, 'response'=>$token, 'remoteip'=>$_SERVER['REMOTE_ADDR'] ?? '']);
+    $out = false;
+    if (function_exists('curl_init')) {
+        $c = curl_init(TS_VERIFY_URL);
+        curl_setopt_array($c, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_POST=>true, CURLOPT_POSTFIELDS=>$post, CURLOPT_TIMEOUT=>10]);
+        $out = curl_exec($c);
+    }
+    if ($out === false && ini_get('allow_url_fopen')) {
+        $ctx = stream_context_create(['http'=>['method'=>'POST', 'header'=>"Content-Type: application/x-www-form-urlencoded\r\n", 'content'=>$post, 'timeout'=>10]]);
+        $out = @file_get_contents(TS_VERIFY_URL, false, $ctx);
+    }
+    if ($out === false) return 'unreachable';
+    $j = json_decode($out, true);
+    return (!empty($j['success'])) ? 'ok' : 'fail';
+}
+
 // 上传接口
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json; charset=utf-8');
+    $ts = ts_verify($_POST['cf-turnstile-response'] ?? '');
+    if ($ts !== 'ok') {
+        $msg = ($ts === 'unreachable') ? '验证服务不可达（主机可能禁止对外请求）' : '请先完成人机验证';
+        echo json_encode(['ok'=>false,'err'=>$msg]); exit;
+    }
     if (empty($_FILES['file'])) { echo json_encode(['ok'=>false,'err'=>'没有文件']); exit; }
     $f = $_FILES['file'];
     if ($f['error'] !== UPLOAD_ERR_OK) { echo json_encode(['ok'=>false,'err'=>'上传失败 code='.$f['error']]); exit; }
@@ -73,6 +104,12 @@ footer a .sep{color:#ccc}
   <div class="big">点击或拖拽图片到此处</div>
   <div class="hint">支持 jpg / png / gif / webp，单张 ≤ 10M</div>
 </div>
+<div id="ts" style="margin-top:16px;display:flex;justify-content:center"></div>
+<script>
+var tsToken='', tsWidget=null;
+function tsLoad(){ tsWidget = turnstile.render('#ts', {sitekey:'<?php echo htmlspecialchars(TS_SITEKEY, ENT_QUOTES); ?>', callback:function(t){tsToken=t;}, 'expired-callback':function(){tsToken='';}}); }
+</script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=tsLoad" async defer></script>
 <input type="file" id="file" accept="image/*" hidden>
 <div id="status"></div>
 
@@ -99,9 +136,11 @@ file.onchange=()=>{if(file.files[0])up(file.files[0])};
 
 function up(f){
   if(f.size>10*1024*1024){status.textContent='超过 10M';return}
+  if(!tsToken){status.textContent='请先完成人机验证';return}
   status.textContent='上传中…';
-  const fd=new FormData();fd.append('file',f);
+  const fd=new FormData();fd.append('file',f);fd.append('cf-turnstile-response',tsToken);
   fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+    if(tsWidget!==null){turnstile.reset(tsWidget);tsToken='';}
     if(!d.ok){status.textContent='失败：'+d.err;return}
     status.textContent='';
     hist=[{url:d.url,name:d.orig||d.name}].concat(hist.filter(h=>h.url!==d.url));
