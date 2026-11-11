@@ -1,7 +1,7 @@
 # php-imgbed
 
 一个极简单文件图床：拖拽上传图片，得到可复制的直链 / HTML / Markdown。
-无框架、无 Composer、无数据库、**无 S3**——图片直接存本机磁盘（`uploads/`），
+无框架、无 Composer、无数据库、无外部存储依赖——图片直接存本机磁盘（`uploads/`），
 一个 `index.php` 搞定前后端。
 
 ## 功能
